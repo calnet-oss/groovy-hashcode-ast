@@ -1,4 +1,22 @@
-/*
+/**
+ * <u>Third Party Notice</u>
+ * <p>
+ * This code is partially derived from the souce code of
+ * <pre>org.codehaus.groovy.transform.EqualsAndHashCodeASTTransformation</pre>,
+ * which is licensed under the <a href="http://www.apache.org/licenses/LICENSE-2.0">Apache
+ * License, Version 2.0</a>.
+ *
+ * The original <a href="https://github.com/groovy/groovy-core/blob/master/src/main/org/codehaus/groovy/transform/EqualsAndHashCodeASTTransformation.java">EqualsAndHashCodeASTTransformation.java</a>
+ * is part of the Groovy source code.
+ *
+ * <a href="https://github.com/groovy/groovy-core/blob/master/LICENSE">Full
+ * Groovy ASF 2.0 LICENSE</a>
+ *
+ * <a href="https://github.com/groovy/groovy-core/blob/master/NOTICE">Groovy
+ * Copyright NOTICE</a>
+ */
+
+ /*
  * Copyright (c) 2016, Regents of the University of California and
  * contributors.
  * All rights reserved.
@@ -46,8 +64,19 @@ import java.util.List;
 import static org.codehaus.groovy.ast.tools.GeneralUtils.*;
 
 /**
- * Partially derived from <pre>org.codehaus.groovy.transform.EqualsAndHashCodeASTTransformation</pre>.
- * <p>
+ * <u>Third Party Notice</u> This code is partially derived from the souce
+ * code of
+ * <pre>org.codehaus.groovy.transform.EqualsAndHashCodeASTTransformation</pre>,
+ * which is licensed under the Apache License, Version 2.0.  This license is
+ * available: http://www.apache.org/licenses/LICENSE-2.0.  The original
+ * EqualsAndHashCodeASTTransformation.java is part of the Groovy source code
+ * and can be located here (as of this writing):
+ * https://github.com/groovy/groovy-core/blob/master/src/main/org/codehaus/groovy/transform/EqualsAndHashCodeASTTransformation.java
+ * The full Groovy ASF 2.0 LICENSE is available here:
+ * https://github.com/groovy/groovy-core/blob/master/LICENSE
+ * The Groovy Copyright NOTICE is available here:
+ * https://github.com/groovy/groovy-core/blob/master/NOTICE
+ *
  * Used in conjunction with the {@link LogicalEqualsAndHashCode} annotation
  * to add equals() and hashCode() to an annotated class based on the class's
  * properties.  Properties can be included or excluded using annotation

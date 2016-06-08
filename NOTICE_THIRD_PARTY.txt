@@ -15,3 +15,16 @@ Files that are covered by this license (may not be an exhaustive list):
     gradlew.bat
 
 Gradle source code is available for download at http://gradle.org/.
+
+#2) Groovy
+
+Groovy is licensed under the Apache License, Version 2.0:
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+See http://groovy-lang.org/faq.html for more information.
+
+Files that contain derived code from software under this license:
+    LogicalEqualsAndHashCodeASTTransformation.java
+        Partially derived from:
+        https://github.com/groovy/groovy-core/blob/master/src/main/org/codehaus/groovy/transform/EqualsAndHashCodeASTTransformation.java
