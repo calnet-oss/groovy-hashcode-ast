@@ -80,9 +80,9 @@ class Person {
 }
 ```
 
-*Note: You can only use one of `excludes` or `includes`, but not both.  A
+**Note: You can only use one of `excludes` or `includes`, but not both.  A
 compile-time error will result if both `excludes` and `includes` are
-specified.*
+specified.**
 
 ## A Recommendation for Your Unit Tests
 
