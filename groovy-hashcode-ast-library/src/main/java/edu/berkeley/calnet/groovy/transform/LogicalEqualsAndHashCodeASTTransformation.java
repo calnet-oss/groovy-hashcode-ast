@@ -34,7 +34,6 @@ import org.codehaus.groovy.ast.stmt.Statement;
 import org.codehaus.groovy.ast.tools.GenericsUtils;
 import org.codehaus.groovy.control.CompilePhase;
 import org.codehaus.groovy.control.SourceUnit;
-import org.codehaus.groovy.runtime.DefaultGroovyMethods;
 import org.codehaus.groovy.syntax.Token;
 import org.codehaus.groovy.syntax.Types;
 import org.codehaus.groovy.transform.AbstractASTTransformation;
@@ -64,7 +63,7 @@ public class LogicalEqualsAndHashCodeASTTransformation extends AbstractASTTransf
     private static final ClassNode OBJECT_TYPE = GenericsUtils.makeClassSafe(Object.class);
     private static final ClassNode STRING_TYPE = GenericsUtils.makeClassSafe(String.class);
     private static final ClassNode LIST_STRING_TYPE = GenericsUtils.makeClassSafeWithGenerics(List.class, STRING_TYPE);
-    private static final ClassNode INTERFACE_TYPE = ClassHelper.make(LogicalEqualsAndHashCodeInterface.class);
+    private static final ClassNode LOGICALEQUALSHASHCODE_INTERFACE_TYPE = ClassHelper.make(LogicalEqualsAndHashCodeInterface.class);
     private static final ClassNode HASHCODESALTS_TYPE = ClassHelper.make(HashCodeSalts.class);
     private static final String EXCLUDES_FIELD = "logicalHashCodeExcludes";
     private static final String INCLUDES_FIELD = "logicalHashCodeIncludes";
@@ -191,7 +190,7 @@ public class LogicalEqualsAndHashCodeASTTransformation extends AbstractASTTransf
 
         // method body
         final BlockStatement body = new BlockStatement();
-        body.addStatement(createHashStatements(propertyNodesToUse));
+        body.addStatement(createHashStatements(cNode, propertyNodesToUse));
 
         // add method to class
         cNode.addMethod(new MethodNode(
@@ -204,37 +203,43 @@ public class LogicalEqualsAndHashCodeASTTransformation extends AbstractASTTransf
         ));
     }
 
-    private static Statement createHashStatements(List<String> propertyNodesToUse) {
+    private static Statement createHashStatements(ClassNode cNode, List<String> propertyNodesToUse) {
         // HashCodeSalts.salts field
         FieldNode saltsFieldNode = HASHCODESALTS_TYPE.getDeclaredField("salts");
         assert saltsFieldNode.isPublic() && saltsFieldNode.isStatic();
 
         /**
-         * Add the following code:
-         * For every non-null field:
-         * return (salt0 * field0) ^ ... ^ (saltN * fieldN)
-         * null fields equal a hash code of 0 with no salt.
+         * (Pseudo-Code)
+         * return
+         *   (salts[0] * getter(logicalHashCodeProperties[0])?.hashCode())
+         *   ^ ...
+         *   ^
+         *   (salts[N] * getter(logicalHashCodeProperties[N])?.hashCode())
          *
-         * Returns 0 if there are no fields to include in the hash.
+         * null property values equal a hash code of 0.
+         *
+         * Returns 0 if logicalHashCodeProperties is empty or all property
+         * values are null.
          */
 
         Expression lastExpression = constX(0);
-        if (DefaultGroovyMethods.asBoolean(propertyNodesToUse)) {
+        if (propertyNodesToUse != null && propertyNodesToUse.size() > 0) {
             int propertyIndex = 0;
             for (String propertyName : propertyNodesToUse) {
+                PropertyNode pNode = cNode.getProperty(propertyName);
+                assert pNode != null;
+                Expression propValExpr = getterX(cNode, pNode);
                 lastExpression = xorX(
                         lastExpression,
                         ternaryX(
-                                notNullX(
-                                        varX(propertyName)
-                                ),
+                                notNullX(propValExpr),
                                 multX(
                                         indexX(
                                                 fieldX(HASHCODESALTS_TYPE, "salts"),
                                                 constX(propertyIndex)
                                         ),
                                         callX(
-                                                varX(propertyName),
+                                                propValExpr,
                                                 "hashCode")
                                 ),
                                 constX(0)
@@ -272,17 +277,16 @@ public class LogicalEqualsAndHashCodeASTTransformation extends AbstractASTTransf
     private static Statement createEqualsStatements(VariableExpression objVar) {
         /**
          * Add the following code;
-         * return (obj != null && obj.hashCode() == hashCode())
+         * return (obj != null && obj instanceof LogicalEqualsAndHashCodeInterface && obj.hashCode() == hashCode())
          */
         BooleanExpression notNull = notNullX(objVar);
-        //BooleanExpression isInstanceOf = isInstanceOfX(objVar, cNode);
+        BooleanExpression isInstanceOf = isInstanceOfX(objVar, LOGICALEQUALSHASHCODE_INTERFACE_TYPE);
         BinaryExpression hashCodeEquals = eqX(callX(objVar, "hashCode"), callThisX("hashCode"));
-        //return returnS(andX(andX(notNull, isInstanceOf), hashCodeEquals));
-        return returnS(andX(notNull, hashCodeEquals));
+        return returnS(andX(andX(notNull, isInstanceOf), hashCodeEquals));
     }
 
     private static void addInterface(ClassNode cNode) {
-        cNode.addInterface(INTERFACE_TYPE);
+        cNode.addInterface(LOGICALEQUALSHASHCODE_INTERFACE_TYPE);
     }
 
     private static ArrayExpression arrayConstX(ClassNode type, List constants) {

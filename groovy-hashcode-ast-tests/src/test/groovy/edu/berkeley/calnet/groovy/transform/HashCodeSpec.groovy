@@ -170,4 +170,18 @@ class HashCodeSpec extends Specification {
         val1.hasProperty("logicalHashCodeExcludes")
         val1.hasProperty("logicalHashCodeProperties")
     }
+
+    void "test that the property getter, not the field, is being used for the property value"() {
+        given:
+        TestEntryValue val1 = new TestEntryValue() {
+            @Override
+            String getField1() {
+                return "hello world"
+            }
+        }
+
+        expect:
+        val1.field1 == "hello world"
+        val1.hashCode() == HashCodeSalts.salts[0] * "hello world".hashCode()
+    }
 }
