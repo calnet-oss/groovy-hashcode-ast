@@ -26,5 +26,6 @@ See http://groovy-lang.org/faq.html for more information.
 
 Files that contain derived code from software under this license:
     LogicalEqualsAndHashCodeASTTransformation.java
+    LogicalEqualsAndHashCodeASTTransformation.class
         Partially derived from:
         https://github.com/groovy/groovy-core/blob/master/src/main/org/codehaus/groovy/transform/EqualsAndHashCodeASTTransformation.java

@@ -31,13 +31,16 @@ dependencies {
     testCompile "org.spockframework:spock-core:1.0-groovy-2.4"
 }
 
+jar {
+    from {["../LICENSE.txt", "../NOTICE_THIRD_PARTY.txt"]}
+}
+
 // publishing with './gradlew publish'
-publish.dependsOn assemble
 publishing {
     publications {
         maven(MavenPublication) {
             artifactId "hashcode-ast"
-            artifact("${project.name}-${project.version}.zip")
+            from components.java
         }
     }
 
@@ -46,7 +49,7 @@ publishing {
             // Put the property settings in ~/.gradle/gradle.properties for
             // default_deploy_url, default_deploy_grails_plugin_repo
             // default_deploy_username and default_deploy_password.
-            url "${project.property('default_deploy_url')}/${default_deploy_grails_plugin_repo}"
+            url "${project.property('default_deploy_url')}/${default_deploy_lib_repo}"
             credentials {
                 username project.property("default_deploy_user")
                 password project.property("default_deploy_password")
