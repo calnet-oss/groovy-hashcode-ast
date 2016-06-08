@@ -184,4 +184,22 @@ class HashCodeSpec extends Specification {
         val1.field1 == "hello world"
         val1.hashCode() == HashCodeSalts.salts[0] * "hello world".hashCode()
     }
+
+    @LogicalEqualsAndHashCode(includes = ["field1", "field2"])
+    private static class TestEntryValueWithIncludes {
+        String field1
+        String field2
+        String excludedField
+    }
+
+    void "test includes parameter"() {
+        given:
+        LogicalEqualsAndHashCodeInterface val1 = (LogicalEqualsAndHashCodeInterface) new TestEntryValueWithIncludes(field1: "hello", field2: "world", excludedField: "ABC")
+        LogicalEqualsAndHashCodeInterface val2 = (LogicalEqualsAndHashCodeInterface) new TestEntryValueWithIncludes(field1: "hello", field2: "world", excludedField: "DEF")
+
+        expect:
+        // test that excludedField is not part of the hashCode
+        val1.hashCode() == val2.hashCode()
+        val1.equals(val2)
+    }
 }
