@@ -119,7 +119,7 @@ assert new Person().logicalHashCodeProperties == ['firstName', 'lastName']
 ## A Note About hashCode() Calculations
  
 This implementation is not making any guarantees or contracts about what
-kind of internal hashCode() algorithm is utilized by the AST transformer
+kind of internal `hashCode()` algorithm is utilized by the AST transformer
 that is kicked off at compile time by using the annotation on your class. 
 Assumptions should not be made, except maybe in your unit tests (see
 [HashCodeSpec.groovy](groovy-hashcode-ast-tests/src/test/groovy/edu/berkeley/calnet/groovy/transform/HashCodeSpec.groovy)).
