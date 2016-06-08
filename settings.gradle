@@ -1,0 +1,2 @@
+rootProject.name = 'groovy-hashcode-ast'
+include 'groovy-hashcode-ast-library', 'groovy-hashcode-ast-tests'

@@ -1,0 +1,18 @@
+//
+// This is a Gradle multi-project build.
+// See settings.gradle for the subprojects.
+//
+// The two subprojects are:
+// groovy-hashcode-ast-library - The main library that is packaged as a jar.
+// groovy-hashcode-ast-test - Tests using the library.
+//
+// We do it this way because it's difficult to have AST transformers and
+// integration tests in the same project.
+//
+// Gradle Multi-Project documentation is here:
+// https://docs.gradle.org/current/userguide/multi_project_builds.html
+//
+
+allprojects {
+    version = '0.0.1-SNAPSHOT'
+}
