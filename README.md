@@ -55,8 +55,7 @@ There are two optional parameters for the annotation to control which
 properties are part of the `hashCode()` and `equals()` annotation.
 
 * `excludes`
-** A list of properties to exclude from `hashCode()` and `equals()`
-   calculations.
+  * A list of properties to exclude from `hashCode()` and `equals()` calculations.
 
 Example:
 ```
@@ -69,8 +68,7 @@ class Person {
 ```
 
 * `includes`
-** A list of properties to include in `hashCode()` and `equals()`
-   calculations.
+  * A list of properties to include in `hashCode()` and `equals()` calculations.
 
 Example:
 ```
