@@ -58,7 +58,13 @@ import java.lang.annotation.*;
 @Target({ElementType.TYPE})
 @GroovyASTTransformationClass("edu.berkeley.calnet.groovy.transform.LogicalEqualsAndHashCodeASTTransformation")
 public @interface LogicalEqualsAndHashCode {
+    /**
+     * properties to exclude from equals() and hashCode() calculations
+     */
     public abstract String[] excludes() default {};
 
+    /**
+     * properties to include in equals() and hashCode() calculations
+     */
     public abstract String[] includes() default {};
 }
