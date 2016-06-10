@@ -41,21 +41,17 @@ import java.lang.annotation.*;
  * }
  * </code>
  *
- * This will add logicalEquals() and a logicalHashCode() methods to a domain
- * class.  These methods will use the DomainLogicalComparator to logically
- * compare domain objects.
- *
- * A logical comparison means comparing values in the domain objects except
- * for the primary keys.
+ * This will add equals() and hashCode() methods to a Groovy class.
  *
  * This annotation accepts the following parameters:
  *
- * excludes=[list of strings] - Optionally pass a list of field names that
- * should be excluded from comparison.
+ * excludes=[list of strings] - Optionally pass a list of property names
+ * that should be excluded from comparison.
  *
- * includes=[list of strings] - Optionally pass a list of field names that
- * should only be included in the comparison.  (The primary key field will
- * be ignored if it's included.)
+ * includes=[list of strings] - Optionally pass a list of property names
+ * that should only be included in the comparison.
+ *
+ * One of excludes or includes can be specified, but not both.
  */
 @Documented
 @Retention(RetentionPolicy.RUNTIME)
