@@ -129,14 +129,15 @@ class HashCodeSpec extends Specification {
         val1.hashCode() == val2.hashCode()
         val1.equals(val2)
 
-        // since the logical hash code is the same and the two objects are equal, the second map put
-        // should overwrite the first map put
+        // since the logical hash code is the same and the two objects are
+        // equal, the second map put should overwrite the first map put
         map.size() == 1
-        // val1 and val2 have same hash code and are equal and point to same map entry
+        // val1 and val2 have same hash code and are equal and point to same
+        // map entry
         map[val1] == "two" && map[val2] == "two"
 
-        // with sets, same-hash-code adds are ignored, so we expect val1 to be there
-        // since it was the first into the set
+        // with sets, same-hash-code adds are ignored, so we expect val1 to
+        // be there since it was the first into the set
         hashSet.size() == 1
         System.identityHashCode(hashSet.first()) == System.identityHashCode(val1)
         treeSet.size() == 1
@@ -164,8 +165,8 @@ class HashCodeSpec extends Specification {
         val1.getLogicalHashCodeIncludes() == []
         val1.getLogicalHashCodeExcludes() == ["excludedField"]
         val1.getLogicalHashCodeProperties() == ["field1", "field2"]
-        // test that the interface fields rise to "property" status because they are public fields
-        // with getters
+        // test that the interface fields rise to "property" status because
+        // they are public fields with getters
         val1.hasProperty("logicalHashCodeIncludes")
         val1.hasProperty("logicalHashCodeExcludes")
         val1.hasProperty("logicalHashCodeProperties")
@@ -205,8 +206,8 @@ class HashCodeSpec extends Specification {
 
     /**
      * Creates a circular reference so that we can test that it doesn't
-     * cause an infinite loop when we call hashCode() on an instance of
-     * this class.
+     * cause an infinite loop when we call hashCode() on an instance of this
+     * class.
      */
     @LogicalEqualsAndHashCode
     static class TestCircularReference {
@@ -219,7 +220,8 @@ class HashCodeSpec extends Specification {
     }
 
     /**
-     * Test that hashCode() doesn't go into infinite loop (or StackOverflowError)
+     * Test that hashCode() doesn't go into infinite loop (or
+     * StackOverflowError)
      */
     void "test circular reference"() {
         given:
@@ -227,9 +229,82 @@ class HashCodeSpec extends Specification {
         circRef.notCircular = "hello world"
 
         expect:
-        // we're just testing that this return with a value and doesn't hang up
-        // in an infinite recursion loop (or StackOverflowError) due to the
-        // circular reference
+        circRef.logicalHashCodeProperties == ["notCircular", "circular"]
+        // we're just testing that this return with a value and doesn't hang
+        // up in an infinite recursion loop (or StackOverflowError) due to
+        // the circular reference
+        circRef.hashCode() == HashCodeSalts.salts[0] * circRef.notCircular.hashCode()
+    }
+
+    @LogicalEqualsAndHashCode
+    static class TestBadCircularReferenceParent {
+        String notCircular
+        BadCircularReference badCircular
+
+        public TestBadCircularReferenceParent() {
+            // won't work because BadCircularReference isn't annotated with
+            // @LogicalEqualsAndHashCode
+            this.badCircular = new BadCircularReference(reference: this)
+        }
+    }
+
+    // not annotated
+    static class BadCircularReference {
+        Object reference
+
+        @Override
+        public int hashCode() {
+            // will cause a circular reference loop between
+            // TestCircularReferenceParent and this
+            return reference.hashCode()
+        }
+    }
+
+    void "test that non-annotated circular references throw StackOverflowError"() {
+        given:
+        TestBadCircularReferenceParent circRef = new TestBadCircularReferenceParent()
+        circRef.notCircular = "hello world"
+
+        when:
+        assert circRef.logicalHashCodeProperties == ["notCircular", "badCircular"]
+        assert circRef.badCircular.reference == circRef
+        // will cause a circular reference loop between
+        // TestCircularReferenceParent instance and BadCircularReference
+        // instance
+        circRef.hashCode()
+
+        then:
+        thrown StackOverflowError
+    }
+
+
+    @LogicalEqualsAndHashCode
+    static class TestGoodCircularReferenceParent {
+        String notCircular
+        GoodCircularReference goodCircular
+
+        public TestGoodCircularReferenceParent() {
+            this.goodCircular = new GoodCircularReference(reference: this)
+        }
+    }
+
+    @LogicalEqualsAndHashCode
+    static class GoodCircularReference {
+        Object reference
+    }
+
+    void "test that annotated circular references are OK"() {
+        given:
+        TestGoodCircularReferenceParent circRef = new TestGoodCircularReferenceParent()
+        circRef.notCircular = "hello world"
+
+        when:
+        assert circRef.logicalHashCodeProperties == ["notCircular", "goodCircular"]
+        assert circRef.goodCircular.logicalHashCodeProperties == ["reference"]
+        assert circRef.goodCircular.reference == circRef
+        circRef.hashCode()
+
+        then:
         circRef.hashCode() == HashCodeSalts.salts[0] * circRef.notCircular.hashCode()
     }
 }

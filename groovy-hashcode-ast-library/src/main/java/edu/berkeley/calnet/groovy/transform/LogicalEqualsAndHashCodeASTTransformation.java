@@ -66,17 +66,6 @@ import java.util.List;
 import static org.codehaus.groovy.ast.tools.GeneralUtils.*;
 
 /**
- * <u>Third Party Notice</u> This code is partially derived from the souce
- * code of
- * <pre>org.codehaus.groovy.transform.EqualsAndHashCodeASTTransformation</pre>,
- * which is licensed under the Apache License, Version 2.0.  This license is
- * available: http://www.apache.org/licenses/LICENSE-2.0.  The original
- * EqualsAndHashCodeASTTransformation.java is part of the Groovy source code
- * and can be located here (as of this writing): https://github.com/groovy/groovy-core/blob/master/src/main/org/codehaus/groovy/transform/EqualsAndHashCodeASTTransformation.java
- * The full Groovy ASF 2.0 LICENSE is available here:
- * https://github.com/groovy/groovy-core/blob/master/LICENSE The Groovy
- * Copyright NOTICE is available here: https://github.com/groovy/groovy-core/blob/master/NOTICE
- *
  * Used in conjunction with the {@link LogicalEqualsAndHashCode} annotation
  * to add equals() and hashCode() to an annotated class based on the class's
  * properties.  Properties can be included or excluded using annotation
@@ -130,13 +119,13 @@ public class LogicalEqualsAndHashCodeASTTransformation extends AbstractASTTransf
                     includes = getMemberList(canonical, "includes");
             }
 
-            // this throws an exception if annotated with both an excludes and includes parameter
+            // this throws an exception if annotated with both an excludes
+            // and includes parameter
             if (!checkIncludeExclude(anno, excludes, includes, MY_TYPE_NAME))
                 return;
 
-            // Need to build a list of properties in this class to include in the hash.
-            // If includes is set: Property must be include list and not in optional excludes list
-            // If includes is not set: Property must not be in excludes list
+            // Need to build a list of properties in this class to include
+            // in the hash.
             List<String> propertyNodesToUse = getLogicalHashCodePropertyNames(cNode, excludes, includes);
             if (propertyNodesToUse.size() > HashCodeSalts.salts.length) {
                 HashCodeSalts.ensureMaxSalts(HashCodeSalts.salts.length);
@@ -189,8 +178,8 @@ public class LogicalEqualsAndHashCodeASTTransformation extends AbstractASTTransf
             final List<String> excludes,
             final List<String> includes
     ) {
-        // Need to build a list of properties in this class to include in the hash.
-        // If includes is set: Property must be include list and not in optional excludes list
+        // If includes is set: Property must be include list and not in
+        // optional excludes list
         // If includes is not set: Property must not be in excludes list
         List<String> foundNames = new LinkedList<String>();
         for (PropertyNode propertyNode : cNode.getProperties()) {
@@ -305,7 +294,7 @@ public class LogicalEqualsAndHashCodeASTTransformation extends AbstractASTTransf
                                                 constX(propertyIndex)
                                         ),
                                         ternaryX(
-                                                isInstanceOfX(propValExpr, MY_TYPE),
+                                                isInstanceOfX(propValExpr, LOGICALEQUALSHASHCODE_INTERFACE_TYPE),
                                                 callX(
                                                         propValExpr,
                                                         "__hashCode",
@@ -330,14 +319,27 @@ public class LogicalEqualsAndHashCodeASTTransformation extends AbstractASTTransf
         return body;
     }
 
-    private static Statement createWrapperHashStatements(ClassNode cNode) {
+    private static BlockStatement createWrapperHashStatements(ClassNode cNode) {
         /**
          * Add the following code:
          * {@code
-         * return __hashCode(new HashMap<Integer,Boolean>());
+         * HashMap<Integer,Boolean> visitMap = new HashMap<Integer,Boolean>()
+         * visitMap.put(System.identityHashCode(this), Boolean.TRUE)
+         * return __hashCode(visitMap)
          * }
          */
-        return returnS(callThisX("__hashCode", ctorX(VISITMAP_TYPE)));
+        BlockStatement body = new BlockStatement();
+        body.addStatement(declS(varX("visitMap", VISITMAP_TYPE), ctorX(VISITMAP_TYPE)));
+        body.addStatement(new ExpressionStatement(callX(
+                varX("visitMap"),
+                "put",
+                args(
+                        callX(SYSTEM_TYPE, "identityHashCode", varX("this")),
+                        fieldX(BOOLEAN_TYPE, "TRUE")
+                )
+        )));
+        body.addStatement(returnS(callThisX("__hashCode", varX("visitMap"))));
+        return body;
     }
 
     private static void createEquals(ClassNode cNode) {

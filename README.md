@@ -147,3 +147,70 @@ As of this writing, the algorithm is:
          * values are null.
          */
 ```
+
+## Good and Bad Circular References
+
+Circular reference loops only work when every instance class in the circular
+reference loop is annotated with `@LogicalEqualsAndHashCode`.
+
+This will work:
+```
+    @LogicalEqualsAndHashCode
+    static class TestCircularReference {
+        String notCircular
+        TestCircularReference circular
+
+        public TestCircularReference() {
+            this.circular = this
+        }
+    }
+```
+
+This will not work:
+```
+    @LogicalEqualsAndHashCode
+    static class TestBadCircularReferenceParent {
+        String notCircular
+        BadCircularReference badCircular
+
+        public TestBadCircularReferenceParent() {
+            // won't work because BadCircularReference isn't annotated with
+            // @LogicalEqualsAndHashCode
+            this.badCircular = new BadCircularReference(reference: this)
+        }
+    }
+
+    // not annotated
+    static class BadCircularReference {
+        Object reference
+
+        @Override
+        public int hashCode() {
+            // will cause a circular reference loop between
+            // TestCircularReferenceParent and this
+            return reference.hashCode()
+        }
+    }```
+
+To make that work, add the `@LogicalEqualsAndHashCode` annotation to the
+`BadCircularReference` class and remove `BadCircularReference.hashCode()`. 
+This is shown here, with `BadCircularReference` renamed to
+`GoodCircularReference`.
+
+This will work:
+```
+    @LogicalEqualsAndHashCode
+    static class TestGoodCircularReferenceParent {
+        String notCircular
+        GoodCircularReference goodCircular
+
+        public TestGoodCircularReferenceParent() {
+            this.goodCircular = new GoodCircularReference(reference: this)
+        }
+    }
+
+    @LogicalEqualsAndHashCode
+    static class GoodCircularReference {
+        Object reference
+    }
+```
