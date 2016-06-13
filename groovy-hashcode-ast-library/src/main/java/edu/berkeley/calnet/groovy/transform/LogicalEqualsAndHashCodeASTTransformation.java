@@ -48,6 +48,7 @@ package edu.berkeley.calnet.groovy.transform;
 import org.codehaus.groovy.ast.*;
 import org.codehaus.groovy.ast.expr.*;
 import org.codehaus.groovy.ast.stmt.BlockStatement;
+import org.codehaus.groovy.ast.stmt.ExpressionStatement;
 import org.codehaus.groovy.ast.stmt.Statement;
 import org.codehaus.groovy.ast.tools.GenericsUtils;
 import org.codehaus.groovy.control.CompilePhase;
@@ -58,6 +59,7 @@ import org.codehaus.groovy.transform.AbstractASTTransformation;
 import org.codehaus.groovy.transform.GroovyASTTransformation;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -70,12 +72,10 @@ import static org.codehaus.groovy.ast.tools.GeneralUtils.*;
  * which is licensed under the Apache License, Version 2.0.  This license is
  * available: http://www.apache.org/licenses/LICENSE-2.0.  The original
  * EqualsAndHashCodeASTTransformation.java is part of the Groovy source code
- * and can be located here (as of this writing):
- * https://github.com/groovy/groovy-core/blob/master/src/main/org/codehaus/groovy/transform/EqualsAndHashCodeASTTransformation.java
+ * and can be located here (as of this writing): https://github.com/groovy/groovy-core/blob/master/src/main/org/codehaus/groovy/transform/EqualsAndHashCodeASTTransformation.java
  * The full Groovy ASF 2.0 LICENSE is available here:
- * https://github.com/groovy/groovy-core/blob/master/LICENSE
- * The Groovy Copyright NOTICE is available here:
- * https://github.com/groovy/groovy-core/blob/master/NOTICE
+ * https://github.com/groovy/groovy-core/blob/master/LICENSE The Groovy
+ * Copyright NOTICE is available here: https://github.com/groovy/groovy-core/blob/master/NOTICE
  *
  * Used in conjunction with the {@link LogicalEqualsAndHashCode} annotation
  * to add equals() and hashCode() to an annotated class based on the class's
@@ -94,6 +94,11 @@ public class LogicalEqualsAndHashCodeASTTransformation extends AbstractASTTransf
     private static final ClassNode LIST_STRING_TYPE = GenericsUtils.makeClassSafeWithGenerics(List.class, STRING_TYPE);
     private static final ClassNode LOGICALEQUALSHASHCODE_INTERFACE_TYPE = ClassHelper.make(LogicalEqualsAndHashCodeInterface.class);
     private static final ClassNode HASHCODESALTS_TYPE = ClassHelper.make(HashCodeSalts.class);
+    private static final ClassNode HASHMAP_TYPE = GenericsUtils.makeClassSafe(HashMap.class);
+    private static final ClassNode INT_TYPE = GenericsUtils.makeClassSafe(Integer.class);
+    private static final ClassNode BOOLEAN_TYPE = GenericsUtils.makeClassSafe(Boolean.class);
+    private static final ClassNode VISITMAP_TYPE = GenericsUtils.makeClassSafeWithGenerics(HASHMAP_TYPE, new GenericsType(INT_TYPE), new GenericsType(BOOLEAN_TYPE));
+    private static final ClassNode SYSTEM_TYPE = GenericsUtils.makeClassSafe(System.class);
     private static final String EXCLUDES_FIELD = "logicalHashCodeExcludes";
     private static final String INCLUDES_FIELD = "logicalHashCodeIncludes";
     private static final String LOGICAL_HASHCODE_PROPS_FIELD = "logicalHashCodeProperties";
@@ -215,41 +220,61 @@ public class LogicalEqualsAndHashCodeASTTransformation extends AbstractASTTransf
     }
 
     private static void createHashCode(ClassNode cNode, List<String> propertyNodesToUse) {
-        if (hasDeclaredMethod(cNode, "hashCode", 0)) return;
+        if (!hasDeclaredMethod(cNode, "__hashCode", 0)) {
+            // add __hashCode() to class
+            cNode.addMethod(new MethodNode(
+                    "__hashCode",
+                    ACC_PUBLIC,
+                    ClassHelper.int_TYPE, // returnType
+                    params(param(VISITMAP_TYPE, "visitMap")), // parameters
+                    ClassNode.EMPTY_ARRAY, // exceptions
+                    createHashStatements(cNode, propertyNodesToUse)
+            ));
+        }
 
-        // method body
-        final BlockStatement body = new BlockStatement();
-        body.addStatement(createHashStatements(cNode, propertyNodesToUse));
-
-        // add method to class
-        cNode.addMethod(new MethodNode(
-                "hashCode",
-                ACC_PUBLIC,
-                ClassHelper.int_TYPE, // returnType
-                Parameter.EMPTY_ARRAY, // parameters
-                ClassNode.EMPTY_ARRAY, // exceptions
-                body
-        ));
+        if (!hasDeclaredMethod(cNode, "hashCode", 0)) {
+            // add hashCode() to class
+            cNode.addMethod(new MethodNode(
+                    "hashCode",
+                    ACC_PUBLIC,
+                    ClassHelper.int_TYPE, // returnType
+                    Parameter.EMPTY_ARRAY, // parameters
+                    ClassNode.EMPTY_ARRAY, // exceptions
+                    createWrapperHashStatements(cNode)
+            ));
+        }
     }
 
-    private static Statement createHashStatements(ClassNode cNode, List<String> propertyNodesToUse) {
+    private static BlockStatement createHashStatements(ClassNode cNode, List<String> propertyNodesToUse) {
         // HashCodeSalts.salts field
         FieldNode saltsFieldNode = HASHCODESALTS_TYPE.getDeclaredField("salts");
         assert saltsFieldNode.isPublic() && saltsFieldNode.isStatic();
 
         /**
          * (Pseudo-Code)
+         * visitMap.put(System.identityHashCode(this), Boolean.TRUE)
          * return
-         *   (salts[0] * getter(logicalHashCodeProperties[0])?.hashCode())
+         *   (getter(logicalHashCodeProperties[0]) != null && !visitMap.containsKey(System.identityHashCode(getter(logicalHashCodeProperties[0])) ? salts[0] * (getter(logicalHashCodeProperties[0]) instanceof LogicalEqualsAndHashCodeInterface ? getter(logicalHashCodeProperties[0]).__hashCode(visitMap) : getter(logicalHashCodeProperties[0]).hashCode()) : 0)
          *   ^ ...
          *   ^
-         *   (salts[N] * getter(logicalHashCodeProperties[N])?.hashCode())
+         *   (getter(logicalHashCodeProperties[N]) != null && !visitMap.containsKey(System.identityHashCode(getter(logicalHashCodeProperties[N])) ? salts[N] * (getter(logicalHashCodeProperties[N]) instanceof LogicalEqualsAndHashCodeInterface ? getter(logicalHashCodeProperties[N]).__hashCode(visitMap) : getter(logicalHashCodeProperties[N]).hashCode()) : 0)
          *
          * null property values equal a hash code of 0.
          *
          * Returns 0 if logicalHashCodeProperties is empty or all property
          * values are null.
          */
+
+        final BlockStatement body = new BlockStatement();
+
+        body.addStatement(new ExpressionStatement(callX(
+                varX("visitMap"),
+                "put",
+                args(
+                        callX(SYSTEM_TYPE, "identityHashCode", varX("this")),
+                        fieldX(BOOLEAN_TYPE, "TRUE")
+                )
+        )));
 
         Expression lastExpression = constX(0);
         if (propertyNodesToUse != null && propertyNodesToUse.size() > 0) {
@@ -258,18 +283,39 @@ public class LogicalEqualsAndHashCodeASTTransformation extends AbstractASTTransf
                 PropertyNode pNode = cNode.getProperty(propertyName);
                 assert pNode != null;
                 Expression propValExpr = getterX(cNode, pNode);
+                Expression notVisitedExpr = notX(callX(
+                        varX("visitMap"),
+                        "containsKey",
+                        callX(
+                                SYSTEM_TYPE,
+                                "identityHashCode",
+                                propValExpr
+                        )
+                ));
                 lastExpression = xorX(
                         lastExpression,
                         ternaryX(
-                                notNullX(propValExpr),
+                                andX(
+                                        notNullX(propValExpr),
+                                        notVisitedExpr
+                                ),
                                 multX(
                                         indexX(
                                                 fieldX(HASHCODESALTS_TYPE, "salts"),
                                                 constX(propertyIndex)
                                         ),
-                                        callX(
-                                                propValExpr,
-                                                "hashCode")
+                                        ternaryX(
+                                                isInstanceOfX(propValExpr, MY_TYPE),
+                                                callX(
+                                                        propValExpr,
+                                                        "__hashCode",
+                                                        varX("visitMap")
+                                                ),
+                                                callX(
+                                                        propValExpr,
+                                                        "hashCode"
+                                                )
+                                        )
                                 ),
                                 constX(0)
                         )
@@ -279,7 +325,19 @@ public class LogicalEqualsAndHashCodeASTTransformation extends AbstractASTTransf
 
         }
 
-        return returnS(lastExpression);
+        body.addStatement(returnS(lastExpression));
+
+        return body;
+    }
+
+    private static Statement createWrapperHashStatements(ClassNode cNode) {
+        /**
+         * Add the following code:
+         * {@code
+         * return __hashCode(new HashMap<Integer,Boolean>());
+         * }
+         */
+        return returnS(callThisX("__hashCode", ctorX(VISITMAP_TYPE)));
     }
 
     private static void createEquals(ClassNode cNode) {

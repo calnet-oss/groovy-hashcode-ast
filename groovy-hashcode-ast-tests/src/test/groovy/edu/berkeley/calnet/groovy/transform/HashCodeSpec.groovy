@@ -202,4 +202,34 @@ class HashCodeSpec extends Specification {
         val1.hashCode() == val2.hashCode()
         val1.equals(val2)
     }
+
+    /**
+     * Creates a circular reference so that we can test that it doesn't
+     * cause an infinite loop when we call hashCode() on an instance of
+     * this class.
+     */
+    @LogicalEqualsAndHashCode
+    static class TestCircularReference {
+        String notCircular
+        TestCircularReference circular
+
+        public TestCircularReference() {
+            this.circular = this
+        }
+    }
+
+    /**
+     * Test that hashCode() doesn't go into infinite loop (or StackOverflowError)
+     */
+    void "test circular reference"() {
+        given:
+        TestCircularReference circRef = new TestCircularReference()
+        circRef.notCircular = "hello world"
+
+        expect:
+        // we're just testing that this return with a value and doesn't hang up
+        // in an infinite recursion loop (or StackOverflowError) due to the
+        // circular reference
+        circRef.hashCode() == HashCodeSalts.salts[0] * circRef.notCircular.hashCode()
+    }
 }
