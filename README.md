@@ -135,15 +135,16 @@ As of this writing, the algorithm is:
         /**
          * (Pseudo-Code)
          * visitMap.put(System.identityHashCode(this), Boolean.TRUE)
-         * return
+         * int hashCode =
          *   (getter(logicalHashCodeProperties[0]) != null && !visitMap.containsKey(System.identityHashCode(getter(logicalHashCodeProperties[0])) ? salts[0] * (getter(logicalHashCodeProperties[0]) instanceof LogicalEqualsAndHashCodeInterface ? getter(logicalHashCodeProperties[0]).__hashCode(visitMap) : getter(logicalHashCodeProperties[0]).hashCode()) : 0)
          *   ^ ...
          *   ^
          *   (getter(logicalHashCodeProperties[N]) != null && !visitMap.containsKey(System.identityHashCode(getter(logicalHashCodeProperties[N])) ? salts[N] * (getter(logicalHashCodeProperties[N]) instanceof LogicalEqualsAndHashCodeInterface ? getter(logicalHashCodeProperties[N]).__hashCode(visitMap) : getter(logicalHashCodeProperties[N]).hashCode()) : 0)
+         * return (hashCode ?: getClass().name.hashCode())
          *
          * null property values equal a hash code of 0.
          *
-         * Returns 0 if logicalHashCodeProperties is empty or all property
+         * Returns getClass().name.hashCode() if logicalHashCodeProperties is empty or all property
          * values are null.
          */
 ```

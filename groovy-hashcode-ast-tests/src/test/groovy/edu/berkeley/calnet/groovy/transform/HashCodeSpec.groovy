@@ -50,7 +50,7 @@ class HashCodeSpec extends Specification {
         )
     }
 
-    void "test hash code generation with null fields"() {
+    void "test hash code generation with mix of non-empty and null fields"() {
         given:
         TestHash obj = new TestHash(hello1: "world1", hello2: null)
 
@@ -66,7 +66,8 @@ class HashCodeSpec extends Specification {
         LogicalEqualsAndHashCodeInterface obj = (LogicalEqualsAndHashCodeInterface) new TestHash(hello1: null, hello2: null)
 
         expect:
-        obj.hashCode() == 0
+        obj.getClass().name == TestHash.name
+        obj.hashCode() == TestHash.name.hashCode()
     }
 
     @LogicalEqualsAndHashCode
@@ -85,8 +86,10 @@ class HashCodeSpec extends Specification {
         obj2.logicalHashCodeIncludes == []
         obj2.logicalHashCodeExcludes == []
         obj2.logicalHashCodeProperties == []
-        obj1.hashCode() == 0
-        obj2.hashCode() == 0
+        obj1.class.name == EmptyObject.name
+        obj2.class.name == EmptyObject.name
+        obj1.hashCode() == EmptyObject.name.hashCode()
+        obj2.hashCode() == EmptyObject.name.hashCode()
         obj1.equals(obj2)
     }
 
@@ -295,8 +298,7 @@ class HashCodeSpec extends Specification {
 
     void "test that annotated circular references are OK"() {
         given:
-        TestGoodCircularReferenceParent circRef = new TestGoodCircularReferenceParent()
-        circRef.notCircular = "hello world"
+        TestGoodCircularReferenceParent circRef = new TestGoodCircularReferenceParent(notCircular: "hello world")
 
         when:
         assert circRef.logicalHashCodeProperties == ["notCircular", "goodCircular"]
@@ -305,6 +307,9 @@ class HashCodeSpec extends Specification {
         circRef.hashCode()
 
         then:
-        circRef.hashCode() == HashCodeSalts.salts[0] * circRef.notCircular.hashCode()
+        circRef.hashCode() == (
+                (HashCodeSalts.salts[0] * circRef.notCircular.hashCode()) ^
+                        (HashCodeSalts.salts[1] * GoodCircularReference.name.hashCode())
+        )
     }
 }
