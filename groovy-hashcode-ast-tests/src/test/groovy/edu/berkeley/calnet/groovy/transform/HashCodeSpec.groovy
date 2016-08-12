@@ -312,4 +312,22 @@ class HashCodeSpec extends Specification {
                         (HashCodeSalts.salts[1] * GoodCircularReference.name.hashCode())
         )
     }
+
+    void "test hash code generation with inheritance"() {
+        given:
+        TestHashExtended obj = new TestHashExtended(hello1: "world1", hello2: "world2", hello3: "world3")
+
+        when:
+        int hashCode = ((LogicalEqualsAndHashCodeInterface) obj).hashCode()
+
+        then:
+        obj.logicalHashCodeIncludes == []
+        obj.logicalHashCodeExcludes == []
+        obj.logicalHashCodeProperties == ["hello3", "hello1", "hello2"]
+        hashCode == (
+                (HashCodeSalts.salts[0] * obj.hello3.hashCode()) ^
+                        (HashCodeSalts.salts[1] * obj.hello1.hashCode()) ^
+                        (HashCodeSalts.salts[2] * obj.hello2.hashCode())
+        )
+    }
 }

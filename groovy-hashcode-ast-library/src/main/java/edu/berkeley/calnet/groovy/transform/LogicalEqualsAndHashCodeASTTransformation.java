@@ -126,7 +126,7 @@ public class LogicalEqualsAndHashCodeASTTransformation extends AbstractASTTransf
 
             // Need to build a list of properties in this class to include
             // in the hash.
-            List<String> propertyNodesToUse = getLogicalHashCodePropertyNames(cNode, excludes, includes);
+            List<PropertyNode> propertyNodesToUse = getLogicalHashCodeProperties(cNode, excludes, includes);
             if (propertyNodesToUse.size() > HashCodeSalts.salts.length) {
                 HashCodeSalts.ensureMaxSalts(HashCodeSalts.salts.length);
             }
@@ -173,42 +173,51 @@ public class LogicalEqualsAndHashCodeASTTransformation extends AbstractASTTransf
         ));
     }
 
-    private static List<String> getLogicalHashCodePropertyNames(
+    private static List<PropertyNode> getLogicalHashCodeProperties(
             ClassNode cNode,
             final List<String> excludes,
             final List<String> includes
     ) {
-        // If includes is set: Property must be include list and not in
-        // optional excludes list
-        // If includes is not set: Property must not be in excludes list
-        List<String> foundNames = new LinkedList<String>();
-        for (PropertyNode propertyNode : cNode.getProperties()) {
-            boolean eval1 = (includes == null || includes.size() == 0 || includes.contains(propertyNode.getName()));
-            boolean eval2 = (excludes == null || excludes.size() == 0 || !excludes.contains(propertyNode.getName()));
-            if (eval1 && eval2) {
-                foundNames.add(propertyNode.getName());
+        // If includes is set: Property must be in includes list and not in
+        // optional excludes list.
+        // If includes is not set: Property must not be in excludes list.
+        List<PropertyNode> foundProperties = new LinkedList<PropertyNode>();
+        while (cNode != null && !cNode.getName().equals("java.lang.Object")) {
+            if (cNode.getProperties() != null) {
+                for (PropertyNode propertyNode : cNode.getProperties()) {
+                    boolean eval1 = (includes == null || includes.size() == 0 || includes.contains(propertyNode.getName()));
+                    boolean eval2 = (excludes == null || excludes.size() == 0 || !excludes.contains(propertyNode.getName()));
+                    if (eval1 && eval2) {
+                        foundProperties.add(propertyNode);
+                    }
+                }
             }
+            cNode = cNode.getSuperClass();
         }
-        return foundNames;
+        return foundProperties;
     }
 
-    private static FieldNode createLogicalHashCodePropertiesField(ClassNode cNode, List<String> propertyNodesToUse
-    ) {
+    private static FieldNode createLogicalHashCodePropertiesField(ClassNode cNode, List<PropertyNode> propertyNodesToUse) {
         FieldNode existing = cNode.getDeclaredField(LOGICAL_HASHCODE_PROPS_FIELD);
         if (existing != null) return existing;
+
+        List<String> propertyNames = new ArrayList<String>(propertyNodesToUse.size());
+        for (PropertyNode node : propertyNodesToUse) {
+            propertyNames.add(node.getName());
+        }
 
         FieldNode fn = new FieldNode(
                 LOGICAL_HASHCODE_PROPS_FIELD,
                 ACC_PUBLIC | ACC_FINAL | ACC_STATIC,
                 LIST_STRING_TYPE,
                 cNode,
-                arrayConstX(STRING_TYPE, propertyNodesToUse)
+                arrayConstX(STRING_TYPE, propertyNames)
         );
         cNode.addField(fn);
         return fn;
     }
 
-    private static void createHashCode(ClassNode cNode, List<String> propertyNodesToUse) {
+    private static void createHashCode(ClassNode cNode, List<PropertyNode> propertyNodesToUse) {
         if (!hasDeclaredMethod(cNode, "__hashCode", 0)) {
             // add __hashCode() to class
             cNode.addMethod(new MethodNode(
@@ -234,7 +243,7 @@ public class LogicalEqualsAndHashCodeASTTransformation extends AbstractASTTransf
         }
     }
 
-    private static BlockStatement createHashStatements(ClassNode cNode, List<String> propertyNodesToUse) {
+    private static BlockStatement createHashStatements(ClassNode cNode, List<PropertyNode> propertyNodesToUse) {
         // HashCodeSalts.salts field
         FieldNode saltsFieldNode = HASHCODESALTS_TYPE.getDeclaredField("salts");
         assert saltsFieldNode.isPublic() && saltsFieldNode.isStatic();
@@ -269,9 +278,7 @@ public class LogicalEqualsAndHashCodeASTTransformation extends AbstractASTTransf
         Expression lastExpression = constX(0);
         if (propertyNodesToUse != null && propertyNodesToUse.size() > 0) {
             int propertyIndex = 0;
-            for (String propertyName : propertyNodesToUse) {
-                PropertyNode pNode = cNode.getProperty(propertyName);
-                assert pNode != null;
+            for (PropertyNode pNode : propertyNodesToUse) {
                 Expression propValExpr = getterX(cNode, pNode);
                 Expression notVisitedExpr = notX(callX(
                         varX("visitMap"),
