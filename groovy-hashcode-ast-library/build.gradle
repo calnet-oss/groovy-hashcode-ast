@@ -35,12 +35,17 @@ jar {
     from {["../LICENSE.txt", "../NOTICE_THIRD_PARTY.txt"]}
 }
 
+task sourceJar(type: Jar) {
+    from sourceSets.main.allGroovy
+}
+
 // publishing with './gradlew publish'
 publishing {
     publications {
         maven(MavenPublication) {
             artifactId "hashcode-ast"
             from components.java
+            artifact sourceJar { classifier "sources" }
         }
     }
 
