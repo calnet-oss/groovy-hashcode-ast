@@ -2,7 +2,6 @@ apply plugin: 'maven'
 apply plugin: 'distribution'
 apply plugin: 'maven-publish'
 
-
 dependencies {
     testCompile "org.spockframework:spock-core:1.0-groovy-2.4"
 }
@@ -11,12 +10,19 @@ jar {
     from {["../LICENSE.txt", "../NOTICE_THIRD_PARTY.txt"]}
 }
 
+task sourceJar(type: Jar) {
+    from sourceSets.main.allGroovy
+    from sourceSets.main.resources
+    from "LICENSE.txt", "NOTICE_THIRD_PARTY.txt"
+}
+
 // publishing with './gradlew publish'
 publishing {
     publications {
         maven(MavenPublication) {
             artifactId "hashcode-ast"
             from components.java
+            artifact sourceJar { classifier "sources" }
         }
     }
 
