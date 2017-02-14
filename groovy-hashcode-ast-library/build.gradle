@@ -12,8 +12,8 @@ jar {
 
 task sourceJar(type: Jar) {
     from sourceSets.main.allGroovy
-    from sourceSets.main.resources
-    from "LICENSE.txt", "NOTICE_THIRD_PARTY.txt"
+    from sourceSets.main.allJava
+    from {["../LICENSE.txt", "../NOTICE_THIRD_PARTY.txt"]}
 }
 
 // publishing with './gradlew publish'
