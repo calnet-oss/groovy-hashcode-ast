@@ -1,6 +1,10 @@
+apply plugin: 'groovy'
 apply plugin: 'maven'
 apply plugin: 'distribution'
 apply plugin: 'maven-publish'
+
+targetCompatibility = 1.8
+sourceCompatibility = 1.8
 
 dependencies {
     testCompile "org.spockframework:spock-core:1.0-groovy-2.4"

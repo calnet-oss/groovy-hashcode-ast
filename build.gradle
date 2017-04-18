@@ -14,13 +14,10 @@
 //
 
 allprojects {
-    apply plugin: 'groovy'
+    apply plugin: 'idea'
 
     group = 'edu.berkeley.calnet.groovy.libs'
     version = '1.0.0-SNAPSHOT'
-
-    targetCompatibility = 1.8
-    sourceCompatibility = 1.8
 
     repositories {
         mavenLocal()
