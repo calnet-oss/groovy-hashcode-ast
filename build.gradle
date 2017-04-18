@@ -36,9 +36,6 @@ allprojects {
         jcenter()
         mavenCentral()
     }
-    dependencies {
-        compile "org.codehaus.groovy:groovy:2.4.7"
-    }
 }
 
 def pdep(String depstr) {
