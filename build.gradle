@@ -17,7 +17,7 @@ allprojects {
     apply plugin: 'idea'
 
     group = 'edu.berkeley.calnet.groovy.libs'
-    version = '1.0.1-BK1-SNAPSHOT'
+    version = '1.0.1-SNAPSHOT'
 
     repositories {
         mavenLocal()

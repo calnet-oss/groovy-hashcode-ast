@@ -52,6 +52,11 @@ import java.lang.annotation.*;
  * that should only be included in the comparison.
  *
  * One of excludes or includes can be specified, but not both.
+ *
+ * changeCallbackClass=SomeClass - An optional class that implements the
+ * HashCodeChangeCallback interface.  When hashCode() is called and a change
+ * in hash code is detected, the hashCodeChange() method will be called. 
+ * The callback is instantiated as a static field.
  */
 @Documented
 @Retention(RetentionPolicy.RUNTIME)
@@ -67,4 +72,9 @@ public @interface LogicalEqualsAndHashCode {
      * properties to include in equals() and hashCode() calculations
      */
     public abstract String[] includes() default {};
+
+    /**
+     * class name that implements the HashCodeChangeCallback interface
+     */
+    public abstract Class changeCallbackClass() default void.class;
 }

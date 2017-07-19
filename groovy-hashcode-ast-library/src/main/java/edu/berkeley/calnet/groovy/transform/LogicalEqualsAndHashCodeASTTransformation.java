@@ -45,8 +45,21 @@
 
 package edu.berkeley.calnet.groovy.transform;
 
-import org.codehaus.groovy.ast.*;
-import org.codehaus.groovy.ast.expr.*;
+import org.codehaus.groovy.ast.ASTNode;
+import org.codehaus.groovy.ast.AnnotatedNode;
+import org.codehaus.groovy.ast.AnnotationNode;
+import org.codehaus.groovy.ast.ClassHelper;
+import org.codehaus.groovy.ast.ClassNode;
+import org.codehaus.groovy.ast.FieldNode;
+import org.codehaus.groovy.ast.GenericsType;
+import org.codehaus.groovy.ast.MethodNode;
+import org.codehaus.groovy.ast.Parameter;
+import org.codehaus.groovy.ast.PropertyNode;
+import org.codehaus.groovy.ast.expr.ArrayExpression;
+import org.codehaus.groovy.ast.expr.BinaryExpression;
+import org.codehaus.groovy.ast.expr.BooleanExpression;
+import org.codehaus.groovy.ast.expr.Expression;
+import org.codehaus.groovy.ast.expr.VariableExpression;
 import org.codehaus.groovy.ast.stmt.BlockStatement;
 import org.codehaus.groovy.ast.stmt.ExpressionStatement;
 import org.codehaus.groovy.ast.stmt.Statement;
@@ -88,9 +101,12 @@ public class LogicalEqualsAndHashCodeASTTransformation extends AbstractASTTransf
     private static final ClassNode BOOLEAN_TYPE = GenericsUtils.makeClassSafe(Boolean.class);
     private static final ClassNode VISITMAP_TYPE = GenericsUtils.makeClassSafeWithGenerics(HASHMAP_TYPE, new GenericsType(INT_TYPE), new GenericsType(BOOLEAN_TYPE));
     private static final ClassNode SYSTEM_TYPE = GenericsUtils.makeClassSafe(System.class);
+    private static final ClassNode HASHCODECHANGECALLBACK_INTERFACE_TYPE = ClassHelper.make(HashCodeChangeCallback.class);
     private static final String EXCLUDES_FIELD = "logicalHashCodeExcludes";
     private static final String INCLUDES_FIELD = "logicalHashCodeIncludes";
     private static final String LOGICAL_HASHCODE_PROPS_FIELD = "logicalHashCodeProperties";
+    private static final String LAST_HASH_CODE_FIELD = "lastHashCode";
+    private static final String HASH_CODE_CHANGE_CALLBACK_FIELD = "hashCodeChangeCallback";
     private static final Token XOR = Token.newSymbol(Types.BITWISE_XOR, -1, -1);
     private static final Token MULT = Token.newSymbol(Types.MULTIPLY, -1, -1);
 
@@ -111,6 +127,7 @@ public class LogicalEqualsAndHashCodeASTTransformation extends AbstractASTTransf
 
             List<String> excludes = getMemberList(anno, "excludes");
             List<String> includes = getMemberList(anno, "includes");
+            ClassNode changeCallbackClassNode = getMemberClassValue(anno, "changeCallbackClass");
             if (hasAnnotation(cNode, MY_TYPE)) {
                 AnnotationNode canonical = cNode.getAnnotations(MY_TYPE).get(0);
                 if (excludes == null || excludes.isEmpty())
@@ -137,6 +154,12 @@ public class LogicalEqualsAndHashCodeASTTransformation extends AbstractASTTransf
             // logicalHashCodeProperties field
             createLogicalHashCodePropertiesField(cNode, propertyNodesToUse);
 
+            // lastHashCode field
+            createLastHashCodeField(cNode);
+
+            // hashCodeChangeCallback field
+            createHashCodeChangeCallbackField(cNode, changeCallbackClassNode);
+
             // hashCode()
             createHashCode(cNode, propertyNodesToUse);
 
@@ -147,6 +170,7 @@ public class LogicalEqualsAndHashCodeASTTransformation extends AbstractASTTransf
             createGetter(cNode, EXCLUDES_FIELD);
             createGetter(cNode, INCLUDES_FIELD);
             createGetter(cNode, LOGICAL_HASHCODE_PROPS_FIELD);
+            createGetter(cNode, HASH_CODE_CHANGE_CALLBACK_FIELD);
 
             // add implements LogicalEqualsAndHashCodeInterface
             addInterface(cNode);
@@ -217,6 +241,36 @@ public class LogicalEqualsAndHashCodeASTTransformation extends AbstractASTTransf
         return fn;
     }
 
+    private static FieldNode createLastHashCodeField(ClassNode cNode) {
+        FieldNode existing = cNode.getDeclaredField(LAST_HASH_CODE_FIELD);
+        if (existing != null) return existing;
+
+        FieldNode fn = new FieldNode(
+                LAST_HASH_CODE_FIELD,
+                ACC_PRIVATE,
+                INT_TYPE,
+                cNode,
+                constX(0)
+        );
+        cNode.addField(fn);
+        return fn;
+    }
+
+    private static FieldNode createHashCodeChangeCallbackField(ClassNode cNode, ClassNode changeCallbackClassNode) {
+        FieldNode existing = cNode.getDeclaredField(HASH_CODE_CHANGE_CALLBACK_FIELD);
+        if (existing != null) return existing;
+
+        FieldNode fn = new FieldNode(
+                HASH_CODE_CHANGE_CALLBACK_FIELD,
+                ACC_PRIVATE | ACC_FINAL | ACC_STATIC,
+                HASHCODECHANGECALLBACK_INTERFACE_TYPE,
+                cNode,
+                (changeCallbackClassNode != null ? ctorX(changeCallbackClassNode) : null)
+        );
+        cNode.addField(fn);
+        return fn;
+    }
+
     private static void createHashCode(ClassNode cNode, List<PropertyNode> propertyNodesToUse) {
         if (!hasDeclaredMethod(cNode, "__hashCode", 0)) {
             // add __hashCode() to class
@@ -251,17 +305,26 @@ public class LogicalEqualsAndHashCodeASTTransformation extends AbstractASTTransf
         /**
          * (Pseudo-Code)
          * visitMap.put(System.identityHashCode(this), Boolean.TRUE)
-         * int hashCode =
+         * int hashCodeCalc =
          *   (getter(logicalHashCodeProperties[0]) != null && !visitMap.containsKey(System.identityHashCode(getter(logicalHashCodeProperties[0])) ? salts[0] * (getter(logicalHashCodeProperties[0]) instanceof LogicalEqualsAndHashCodeInterface ? getter(logicalHashCodeProperties[0]).__hashCode(visitMap) : getter(logicalHashCodeProperties[0]).hashCode()) : 0)
          *   ^ ...
          *   ^
          *   (getter(logicalHashCodeProperties[N]) != null && !visitMap.containsKey(System.identityHashCode(getter(logicalHashCodeProperties[N])) ? salts[N] * (getter(logicalHashCodeProperties[N]) instanceof LogicalEqualsAndHashCodeInterface ? getter(logicalHashCodeProperties[N]).__hashCode(visitMap) : getter(logicalHashCodeProperties[N]).hashCode()) : 0)
-         * return (hashCode ?: getClass().name.hashCode())
+         * int hashCode = hashCodeCalc ?: getClass().name.hashCode()
+         * if(hashCodeChangeCallback != null && lastHashCode != 0 && hashCode != lastHashCode) {
+         *   int lastHashArg = lastHashCode
+         *   lastHashCode = hashCode
+         *   hashCodeChangeCallback.hashCodeChange(this, lastHashArg, hashCode)
+         * }
+         * else {
+         *   lastHashCode = hashCode
+         * }
+         * return hashCode
          *
          * null property values equal a hash code of 0.
          *
-         * Returns getClass().name.hashCode() if logicalHashCodeProperties is empty or all property
-         * values are null.
+         * Returns getClass().name.hashCode() if logicalHashCodeProperties
+         * is empty or all property values are null.
          */
 
         final BlockStatement body = new BlockStatement();
@@ -279,7 +342,7 @@ public class LogicalEqualsAndHashCodeASTTransformation extends AbstractASTTransf
         if (propertyNodesToUse != null && propertyNodesToUse.size() > 0) {
             int propertyIndex = 0;
             for (PropertyNode pNode : propertyNodesToUse) {
-                Expression propValExpr = getterX(cNode, pNode);
+                Expression propValExpr = getterThisX(cNode, pNode);
                 Expression notVisitedExpr = notX(callX(
                         varX("visitMap"),
                         "containsKey",
@@ -322,12 +385,42 @@ public class LogicalEqualsAndHashCodeASTTransformation extends AbstractASTTransf
 
         }
 
-        body.addStatement(declS(varX("hashCode", INT_TYPE), lastExpression));
-        body.addStatement(returnS(ternaryX(
-                varX("hashCode"),
-                varX("hashCode"),
+        body.addStatement(declS(varX("hashCodeCalc", INT_TYPE), lastExpression));
+        body.addStatement(declS(varX("hashCode", INT_TYPE), ternaryX(
+                varX("hashCodeCalc"),
+                varX("hashCodeCalc"),
                 callX(callX(callThisX("getClass"), "getName"), "hashCode")
         )));
+
+        // Call the change callback if the hash code has changed
+        body.addStatement(ifElseS(
+                andX(
+                        andX(
+                                notNullX(varX(HASH_CODE_CHANGE_CALLBACK_FIELD)),
+                                neX(varX("lastHashCode"), constX(0))
+                        ),
+                        neX(varX("hashCode"), varX("lastHashCode"))
+                ),
+                block(
+                        declS(varX("lastHashArg", INT_TYPE), varX("lastHashCode")),
+                        assignS(varX("lastHashCode"), varX("hashCode")),
+                        stmt(callX(
+                                varX(HASH_CODE_CHANGE_CALLBACK_FIELD),
+                                "hashCodeChange",
+                                args(
+                                        varX("this"),
+                                        varX("lastHashArg"),
+                                        varX("hashCode")
+                                )
+                        ))
+                ),
+                block(
+                        assignS(varX("lastHashCode"), varX("hashCode"))
+                )
+        ));
+
+        body.addStatement(assignS(varX("lastHashCode"), varX("hashCode")));
+        body.addStatement(returnS(varX("hashCode")));
 
         return body;
     }

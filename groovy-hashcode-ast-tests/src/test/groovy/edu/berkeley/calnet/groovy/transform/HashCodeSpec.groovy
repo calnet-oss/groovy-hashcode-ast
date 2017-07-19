@@ -330,4 +330,43 @@ class HashCodeSpec extends Specification {
                         (HashCodeSalts.salts[2] * obj.hello2.hashCode())
         )
     }
+
+    @LogicalEqualsAndHashCode(changeCallbackClass = TestHashCodeChangeCallback)
+    static class TestHashWithCallback {
+        String hello1
+        String hello2
+    }
+
+    void "test hash code change callback"() {
+        given:
+        HashCodeChangeCallback mockCallback = Mock(HashCodeChangeCallback)
+        TestHashWithCallback obj = new TestHashWithCallback(hello1: "world1A", hello2: "world2A")
+        ((TestHashCodeChangeCallback) ((LogicalEqualsAndHashCodeInterface) obj).hashCodeChangeCallback).delegate = mockCallback
+
+        int expectedBeforeHashCode = (
+                (HashCodeSalts.salts[0] * "world1A".hashCode()) ^
+                        (HashCodeSalts.salts[1] * "world2A".hashCode())
+        )
+
+        int expectedAfterHashCode = (
+                (HashCodeSalts.salts[0] * "world1B".hashCode()) ^
+                        (HashCodeSalts.salts[1] * "world2B".hashCode())
+        )
+
+        when:
+        int hashCodeBefore = obj.hashCode()
+
+        and: "change hash code"
+        obj.hello1 = "world1B"
+        obj.hello2 = "world2B"
+        int hashCodeAfter = obj.hashCode()
+
+        then:
+        ((LogicalEqualsAndHashCodeInterface) obj).hashCodeChangeCallback
+        hashCodeBefore == expectedBeforeHashCode
+        hashCodeAfter != hashCodeBefore
+        hashCodeAfter == expectedAfterHashCode
+        1 * mockCallback.hashCodeChange(obj, expectedBeforeHashCode, expectedAfterHashCode)
+        0 * mockCallback.hashCodeChange(_, _, _)
+    }
 }
