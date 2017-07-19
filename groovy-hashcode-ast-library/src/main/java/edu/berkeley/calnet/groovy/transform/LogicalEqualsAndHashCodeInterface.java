@@ -35,4 +35,6 @@ public interface LogicalEqualsAndHashCodeInterface {
     public List<String> getLogicalHashCodeIncludes();
 
     public List<String> getLogicalHashCodeProperties();
+
+    public HashCodeChangeCallback getHashCodeChangeCallback();
 }

@@ -70,6 +70,19 @@ class Person {
 * `includes`
   * A list of properties to include in `hashCode()` and `equals()` calculations.
 
+* 'changeCallbackClass'
+  * An optional class that implements the `HashCodeChangeCallback`
+    interface.  When `hashCode()` is called and a change in hash code is
+    detected, the `hashCodeChange()` method will be called.  The callback is
+    instantiated as a static field.  An example where this would be useful:
+    if your objects are in a sorted collection and you need to re-sort the
+    collection because of hash code changes.  If you don't re-sort the
+    collection, you may run into odd collection behavior because methods in
+    the collection may depend on the ordering in collection to stay
+    consistent with the ordering of the hash code values.  An example of
+    this is the `TreeSet` and `TreeMap` `contains()` methods (and likely any
+    sorted collection `contains()`).
+
 Example:
 ```
 @LogicalEqualsAndHashCode(includes = ['firstName', 'lastName'])
