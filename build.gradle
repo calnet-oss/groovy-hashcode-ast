@@ -13,8 +13,13 @@
 // https://docs.gradle.org/current/userguide/multi_project_builds.html
 //
 
-project.group = 'edu.berkeley.calnet.groovy.libs'
-project.version = '1.0.1-SNAPSHOT'
+group 'edu.berkeley.calnet.groovy.libs'
+version '1.0.1-SNAPSHOT'
+
+subprojects {
+    version parent.version
+    group parent.group
+}
 
 allprojects {
     apply plugin: 'idea'
