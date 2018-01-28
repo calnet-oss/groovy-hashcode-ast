@@ -13,8 +13,8 @@
 // https://docs.gradle.org/current/userguide/multi_project_builds.html
 //
 
-group 'edu.berkeley.calnet.groovy.libs'
-version '1.0.1-SNAPSHOT'
+version projectVersion
+group projectGroup
 
 subprojects {
     version parent.version
