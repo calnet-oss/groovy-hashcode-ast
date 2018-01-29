@@ -27,7 +27,7 @@ publishing {
         maven(MavenPublication) {
             artifactId "hashcode-ast"
             version projectVersion
-            group projectGroup
+            groupId projectGroup
             from components.java
             artifact sourceJar { classifier "sources" }
         }
