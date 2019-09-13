@@ -39,6 +39,6 @@ allprojects {
     }
 }
 
-def pdep(depstr) {
+def pdep(String depstr) {
     return (depstr.startsWith(":") ? project(depstr) : depstr)
 }
