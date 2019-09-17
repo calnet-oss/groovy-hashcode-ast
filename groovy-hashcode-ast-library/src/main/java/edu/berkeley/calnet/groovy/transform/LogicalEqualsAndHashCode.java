@@ -55,7 +55,7 @@ import java.lang.annotation.*;
  *
  * changeCallbackClass=SomeClass - An optional class that implements the
  * HashCodeChangeCallback interface.  When hashCode() is called and a change
- * in hash code is detected, the hashCodeChange() method will be called. 
+ * in hash code is detected, the hashCodeChange() method will be called.
  * The callback is instantiated as a static field.
  */
 @Documented
@@ -66,15 +66,15 @@ public @interface LogicalEqualsAndHashCode {
     /**
      * properties to exclude from equals() and hashCode() calculations
      */
-    public abstract String[] excludes() default {};
+    String[] excludes() default {};
 
     /**
      * properties to include in equals() and hashCode() calculations
      */
-    public abstract String[] includes() default {};
+    String[] includes() default {};
 
     /**
      * class name that implements the HashCodeChangeCallback interface
      */
-    public abstract Class changeCallbackClass() default void.class;
+    Class changeCallbackClass() default void.class;
 }

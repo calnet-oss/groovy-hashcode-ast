@@ -5,7 +5,7 @@
  * <pre>org.codehaus.groovy.transform.EqualsAndHashCodeASTTransformation</pre>,
  * which is licensed under the <a href="http://www.apache.org/licenses/LICENSE-2.0">Apache
  * License, Version 2.0</a>.
- *
+ * <p>
  * The original <a href="https://github.com/groovy/groovy-core/blob/master/src/main/org/codehaus/groovy/transform/EqualsAndHashCodeASTTransformation.java">EqualsAndHashCodeASTTransformation.java</a>
  * is part of the Groovy source code.
  *
@@ -16,7 +16,7 @@
  * Copyright NOTICE</a>
  */
 
- /*
+/*
  * Copyright (c) 2016, Regents of the University of California and
  * contributors.
  * All rights reserved.
@@ -125,21 +125,31 @@ public class LogicalEqualsAndHashCodeASTTransformation extends AbstractASTTransf
             ClassNode cNode = (ClassNode) parent;
             if (!checkNotInterface(cNode, MY_TYPE_NAME)) return;
 
-            List<String> excludes = getMemberList(anno, "excludes");
-            List<String> includes = getMemberList(anno, "includes");
+            List<String> excludes = getMemberStringList(anno, "excludes");
+            List<String> includes = getMemberStringList(anno, "includes");
             ClassNode changeCallbackClassNode = getMemberClassValue(anno, "changeCallbackClass");
             if (hasAnnotation(cNode, MY_TYPE)) {
                 AnnotationNode canonical = cNode.getAnnotations(MY_TYPE).get(0);
-                if (excludes == null || excludes.isEmpty())
-                    excludes = getMemberList(canonical, "excludes");
-                if (includes == null || includes.isEmpty())
-                    includes = getMemberList(canonical, "includes");
+                if (excludes == null || excludes.isEmpty()) {
+                    excludes = getMemberStringList(canonical, "excludes");
+                }
+                if (includes == null || includes.isEmpty()) {
+                    includes = getMemberStringList(canonical, "includes");
+                }
             }
 
             // this throws an exception if annotated with both an excludes
             // and includes parameter
-            if (!checkIncludeExclude(anno, excludes, includes, MY_TYPE_NAME))
+            if (!checkIncludeExcludeUndefinedAware(anno, excludes, includes, MY_TYPE_NAME)) {
                 return;
+            }
+
+            if (excludes == null) {
+                excludes = new ArrayList<>();
+            }
+            if (includes == null) {
+                includes = new ArrayList<>();
+            }
 
             // Need to build a list of properties in this class to include
             // in the hash.
@@ -175,7 +185,6 @@ public class LogicalEqualsAndHashCodeASTTransformation extends AbstractASTTransf
             // add implements LogicalEqualsAndHashCodeInterface
             addInterface(cNode);
         }
-
     }
 
     private static void createIncludeExcludeFields(ClassNode cNode, List<String> excludes, List<String> includes) {
